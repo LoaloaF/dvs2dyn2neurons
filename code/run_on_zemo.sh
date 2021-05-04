@@ -9,4 +9,6 @@ sshpass -p ni-class9 ssh sistef@zemo.lan.ini.uzh.ch "
     cd code
     python3 samna_network.py
     echo
+    exit
+    sshpass -p ni-class9 scp sistef@zemo.lan.ini.uzh.ch:/home/sistef/data/events_*.pkl ../data/
     "

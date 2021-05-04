@@ -189,35 +189,28 @@ def numpy2vid(t, x, y, pol, img_dim, T=16000, fps=None, fname='../data/output.mp
     print(f'Saved: {fname}')
 
 def main():
-    filename = '../data/DAVIS240C-2021-03-17T10-49-45+0100-08360054-0.aedat4'
+    filename = '../data/DAVIS240C-2021-03-17T10-49-45+0100-08360054-0.aedat4'   #DAVIS1
+    filename = '../data/DAVIS240C-2018-10-12_pentagon0.5.aedat4'    #DAVIS2
+    name = 'DAVIS2'
     # aedat4 file to numpy array
     t, x, y, pol, img_dim = dv2numpy(filename, norm_timestamps=True)
 
     # for visualizing kernel, always call with downsampling=True
     # the viz_kernel option downs't actually do anything to the data - no reshaping
-    viz_kernels = reshape_events(t, x, y, pol, img_dim, downsample=True, get_kernel_viz_params=True)
+    # viz_kernels = reshape_events(t, x, y, pol, img_dim, downsample=True, get_kernel_viz_params=True)
     # actually viz kernel areas in a video
-    numpy2vid(t, x, y, pol, img_dim, fname='../data/DAVIS1_nocrop_regions.mp4', viz_kernels=viz_kernels, name='nocrop kernel regions')
+    # numpy2vid(t, x, y, pol, img_dim, fname=f'../data/{name}_nocrop_regions.mp4', viz_kernels=viz_kernels, name=name)
 
     # use reshape function to crop, but for visualization, first only get kernel viz parameters
-    viz_kernels = reshape_events(t, x, y, pol, img_dim, downsample=True, crop_to=(57,90,110,160), get_kernel_viz_params=True)
+    # viz_kernels = reshape_events(t, x, y, pol, img_dim, downsample=True, crop_to=(57,90,110,160), get_kernel_viz_params=True)
     # downsample is false because we want to visualize the kernel areas, this actually modifies the data to being cropped
-    t, x, y, pol, img_dim = reshape_events(t, x, y, pol, img_dim, crop_to=(57,90,110,160), downsample=False)
+    # t, x, y, pol, img_dim = reshape_events(t, x, y, pol, img_dim, crop_to=(57,90,110,160), downsample=False)
     # actually viz kernel areas
-    numpy2vid(t, x, y, pol, img_dim, fname='../data/DAVIS1_cropped_regions.mp4', viz_kernels=viz_kernels, name='cropped: kernel regions')
+    # numpy2vid(t, x, y, pol, img_dim, fname=f'../data/{name}_cropped_regions.mp4', viz_kernels=viz_kernels, name=name)
 
     # finally downsampled data, cropping has already been applied so omitted for this reshape() call
     t, x, y, pol, img_dim = reshape_events(t, x, y, pol, img_dim, downsample=True)
-    numpy2vid(t, x, y, pol, img_dim, fname='../data/DAVIS1_cropped_downsampled.mp4', name='cropped: downsampled')
-
-def main2():
-    filename = '../data/DAVIS240C-2021-03-17T10-49-45+0100-08360054-0.aedat4'
-    # aedat4 file to numpy array
-    t, x, y, pol, img_dim = dv2numpy(filename, norm_timestamps=True)
-    t, x, y, pol, img_dim = reshape_events(t, x, y, pol, img_dim, crop_to=(57,90,110,160), downsample=True)
-
-
+    numpy2vid(t, x, y, pol, img_dim, fname=f'../data/{name}_downsampled.mp4', name=name)
 
 if __name__ == '__main__':
-    # main()
-    main2()
+    main()
