@@ -457,7 +457,7 @@ def gen_param_group_1core():
     paramGroup.param_map["IF_RFR_N"].fine_value = 128
 
     # leakage of neurons
-    paramGroup.param_map["IF_TAU1_N"].coarse_value = 4
+    paramGroup.param_map["IF_TAU1_N"].coarse_value = 3
     paramGroup.param_map["IF_TAU1_N"].fine_value = 80
 
     # turn off tau2
@@ -469,7 +469,7 @@ def gen_param_group_1core():
     paramGroup.param_map["IF_DC_P"].fine_value = 0
 
     # leakage of AMPA
-    paramGroup.param_map["NPDPIE_TAU_F_P"].coarse_value = 4
+    paramGroup.param_map["NPDPIE_TAU_F_P"].coarse_value = 3
     paramGroup.param_map["NPDPIE_TAU_F_P"].fine_value = 80
 
     # gain of AMPA
@@ -477,8 +477,8 @@ def gen_param_group_1core():
     paramGroup.param_map["NPDPIE_THR_F_P"].fine_value = 80
 
     # weight of AMPA
-    paramGroup.param_map["PS_WEIGHT_EXC_F_N"].coarse_value = 0
-    paramGroup.param_map["PS_WEIGHT_EXC_F_N"].fine_value = 0
+    paramGroup.param_map["PS_WEIGHT_EXC_F_N"].coarse_value = 7
+    paramGroup.param_map["PS_WEIGHT_EXC_F_N"].fine_value = 80
 
     # leakage of NMDA
     paramGroup.param_map["NPDPIE_TAU_S_P"].coarse_value = 4

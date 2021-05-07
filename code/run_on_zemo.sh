@@ -5,10 +5,8 @@ sshpass -p ni-class9 scp ctxctl_contrib/*.py sistef@zemo.lan.ini.uzh.ch:/home/si
 sshpass -p ni-class9 scp -r ../data/*.aedat4 sistef@zemo.lan.ini.uzh.ch:/home/sistef/data
 
 sshpass -p ni-class9 ssh sistef@zemo.lan.ini.uzh.ch "
-    echo 
     cd code
     python3 samna_network.py
-    echo
     exit
-    sshpass -p ni-class9 scp sistef@zemo.lan.ini.uzh.ch:/home/sistef/data/events_*.pkl ../data/
     "
+sshpass -p ni-class9 scp sistef@zemo.lan.ini.uzh.ch:/home/sistef/data/events_*.pkl ./../data/

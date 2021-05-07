@@ -38,17 +38,19 @@ def get_dvs_input(aedat_file=None, crop_to=None, only_pol=None):
     timestamps = t/1e6
     return fpga_ID, timestamps
 
-def dvs2stimulus(model, filename, crop_to=None, only_pol=None):
+def dvs2stimulus(model, filename, crop_to=None, only_pol=None, get_rawDVS_input=True):
     fpga_ID, timestamps = get_dvs_input(filename, crop_to, only_pol)
-    post_chip = 0
-    target_chips = np.full_like(fpga_ID, post_chip, dtype=int)
+    target_chips = np.full_like(fpga_ID, CHIP_ID, dtype=int)
     isi_base = 900
     repeat_mode=False
 
     fpga_spike_gen = model.get_fpga_spike_gen()
     ut.set_fpga_spike_gen(fpga_spike_gen, timestamps, fpga_ID, target_chips, 
                           isi_base, repeat_mode)
-    return fpga_spike_gen, timestamps[-1]
+    if get_rawDVS_input:
+        return fpga_spike_gen, timestamps[-1], fpga_ID, (timestamps*1e6).astype(int)
+    else:
+        return fpga_spike_gen, timestamps[-1]
 
 def init_dynapse():
     device_name = "Board02"
@@ -59,7 +61,7 @@ def init_dynapse():
 
     # set initial (proper) parameters
     paramGroup = ut.gen_param_group_1core()
-    for core in [FPGA_NEURONS_CORE, WTA_NEURONS_CORE, INH_NEURONS_CORE, STIM_NEURONS_CORE]:
+    for core in [WTA_NEURONS_CORE, INH_NEURONS_CORE, STIM_NEURONS_CORE]:
         for chip in range(4):
             model.update_parameter_group(paramGroup, chip, core)
 
@@ -70,8 +72,9 @@ def build_network(model):
     # create all the neurons
     fpga_inputs, wta_neurons, inh_neurons, stim_neurons = [], [], [], []
     for pid in PIXEL_IDS:
+        # spikegen needs its own population?
+        fpga_inputs.append(Neuron(CHIP_ID, FPGA_NEURONS_CORE, pid, is_spike_gen=True))
         wta_neurons.append(Neuron(CHIP_ID, WTA_NEURONS_CORE, pid))
-        fpga_inputs.append(Neuron(CHIP_ID, WTA_NEURONS_CORE, pid, is_spike_gen=True))
         inh_neurons.append(Neuron(CHIP_ID, INH_NEURONS_CORE, pid))
         stim_neurons.append(Neuron(CHIP_ID, STIM_NEURONS_CORE, pid))
 
@@ -93,7 +96,6 @@ def build_network(model):
 def get_monitors(model, to_monitor=['FPGA', 'WTA', 'INH', 'STIM']):
     monitors = {key: {} for key in to_monitor}
     for mon in monitors:
-        print('\n\n', mon, ' global neuron IDS:')
         if mon == 'FPGA':
             core = FPGA_NEURONS_CORE
         elif mon == 'WTA':
@@ -103,9 +105,11 @@ def get_monitors(model, to_monitor=['FPGA', 'WTA', 'INH', 'STIM']):
         elif mon == 'STIM':
             core = STIM_NEURONS_CORE
         global_ids = [ut.get_global_id(CHIP_ID, core, nid) for nid in PIXEL_IDS]
-        print(global_ids)
         graph, filter_node, sink_node = ut.create_neuron_select_graph(model, global_ids)
-        filter_node.set_neurons(global_ids)
+        print()
+        print(mon)
+        print(global_ids)
+        # filter_node.set_neurons(global_ids)   # necessary?
 
         monitors[mon]['graph'] = graph
         monitors[mon]['filter_node'] = filter_node
@@ -126,14 +130,17 @@ def run_network(monitors, duration, stimulus=None):
         stimulus.stop()
     [monitor['graph'].stop() for monitor in monitors.values()]
 
-def process_output(monitors, name=''):
+def process_output(monitors, name='', DVS_input=None):
     events_numpy = {}
+    if DVS_input:
+        fpga_ID, timestamps = DVS_input
+        events_numpy['DVS'] = np.stack((fpga_ID, timestamps)).T
+
     for mon_name, monitor in monitors.items():
         print(f'\n\n\n\n{mon_name}: n events: {len(monitor["events"])}\n')
         ev_npy = [(ev.neuron_id, ev.timestamp) for ev in monitor['events']]
         if ev_npy:
             events_numpy[mon_name] = np.stack(ev_npy)
-
     pickle.dump(events_numpy, open(f'../data/events_{name}.pkl', 'wb'))
 
 
@@ -145,23 +152,20 @@ def process_output(monitors, name=''):
         
 def main():
     store, model, device_name, paramGroup = init_dynapse()
+    
+    filename = '../data/DAVIS240C-2021-03-17T10-49-45+0100-08360054-0.aedat4'
+    area = (57,90,110,160)
+    only_pol = 1
+    stimulus, duration, fpga_ID, timestamps = dvs2stimulus(model, filename, crop_to=area, only_pol=only_pol)
 
-    # build_network(model)
+    build_network(model)
 
-    # filename = '../data/DAVIS240C-2021-03-17T10-49-45+0100-08360054-0.aedat4'
-    # area = (57,90,110,160)
-    # only_pol = 1
-    # stimulus, duration = dvs2stimulus(model, filename, crop_to=area, only_pol=only_pol)
+    # print('STIMULUS OFF')
+    # stimulus = None
 
-    duration = 20
     monitors = get_monitors(model)
     run_network(monitors, duration)
-    process_output(monitors, name='DAVIS1')
-
-    # print(monitors['FPGA']['events'][0].neuron_id)
-    # # print(monitors['FPGA']['events'][0].isi)
-    # print(monitors['STIM']['events'][0].neuron_id)
-    # print(monitors['STIM']['events'][0].timestamp)
+    process_output(monitors, name='DAVIS1', DVS_input=(fpga_ID, timestamps))
 
     ut.close_dynapse1(store, device_name)
 
