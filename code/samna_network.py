@@ -27,6 +27,7 @@ N_STIM_NEURONS = 64
 STIM_NEURONS_CORE = 3
 PIXEL_IDS = np.arange(N_WTA_NEURONS)
 
+
 def get_dvs_input(aedat_file=None, crop_to=None, only_pol=None):
     t, x, y, pol, img_dim = dv2numpy(aedat_file, norm_timestamps=True)
     t, x, y, pol, img_dim = reshape_events(t, x, y, pol, img_dim, 
@@ -106,9 +107,6 @@ def get_monitors(model, to_monitor=['FPGA', 'WTA', 'INH', 'STIM']):
             core = STIM_NEURONS_CORE
         global_ids = [ut.get_global_id(CHIP_ID, core, nid) for nid in PIXEL_IDS]
         graph, filter_node, sink_node = ut.create_neuron_select_graph(model, global_ids)
-        print()
-        print(mon)
-        print(global_ids)
         # filter_node.set_neurons(global_ids)   # necessary?
 
         monitors[mon]['graph'] = graph
@@ -116,18 +114,16 @@ def get_monitors(model, to_monitor=['FPGA', 'WTA', 'INH', 'STIM']):
         monitors[mon]['sink_node'] = sink_node
     return monitors
 
-def run_network(monitors, duration, stimulus=None):
+def run_network(monitors, duration, stimulus):
     [monitor['graph'].start() for monitor in monitors.values()]
-    if stimulus:
-        stimulus.start()
+    stimulus.start()
 
     [monitor['sink_node'].get_buf() for monitor in monitors.values()]
     time.sleep(duration)
     for monitor in monitors.values():
         monitor['events'] = monitor['sink_node'].get_buf()
 
-    if stimulus:
-        stimulus.stop()
+    stimulus.stop()
     [monitor['graph'].stop() for monitor in monitors.values()]
 
 def process_output(monitors, name='', DVS_input=None):
@@ -155,16 +151,13 @@ def main():
     
     filename = '../data/DAVIS240C-2021-03-17T10-49-45+0100-08360054-0.aedat4'
     area = (57,90,110,160)
-    only_pol = 1
+    only_pol = 0
     stimulus, duration, fpga_ID, timestamps = dvs2stimulus(model, filename, crop_to=area, only_pol=only_pol)
 
     build_network(model)
 
-    # print('STIMULUS OFF')
-    # stimulus = None
-
     monitors = get_monitors(model)
-    run_network(monitors, duration)
+    run_network(monitors, duration, stimulus)
     process_output(monitors, name='DAVIS1', DVS_input=(fpga_ID, timestamps))
 
     ut.close_dynapse1(store, device_name)

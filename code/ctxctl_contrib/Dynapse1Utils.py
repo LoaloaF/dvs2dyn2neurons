@@ -513,8 +513,8 @@ def gen_param_group_1core():
     paramGroup.param_map["NPDPII_THR_S_P"].fine_value = 80
 
     # weight of GABA_B
-    paramGroup.param_map["PS_WEIGHT_INH_S_N"].coarse_value = 0
-    paramGroup.param_map["PS_WEIGHT_INH_S_N"].fine_value = 0
+    paramGroup.param_map["PS_WEIGHT_INH_S_N"].coarse_value = 6
+    paramGroup.param_map["PS_WEIGHT_INH_S_N"].fine_value = 1
 
     # other advanced parameters
     paramGroup.param_map["IF_NMDA_N"].coarse_value = 0
