@@ -3,8 +3,6 @@ import os
 import glob
 import pickle
 
-import skvideo.io
-
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import animation
@@ -12,14 +10,35 @@ from skimage.util import img_as_ubyte
 from skimage.color import rgb2gray
 
 from viz_dyn_output import ON_EVENT_COLOR, OFF_EVENT_COLOR
+np.random.seed(221)
 
-def from_numpy(datafile, norm_timestamps=True):
+def from_numpy(datafile, norm_timestamps=True, timeslice=None, sample=None):
     if not os.path.exists(datafile):
         print('File not found: ', datafile)
         exit(1)
-    t, x, y, pol = np.load(datafile).T
+    data = np.load(datafile)
+    if data.shape[1] == 4:
+        data = data.T
+    t, x, y, pol = data
     if norm_timestamps:
         t -= t[0]
+    print(f'n events: {len(t)}, t0:{t[0]}, t-1:{t[-1]}')
+
+    if timeslice is not None:
+        idx_in_bin = np.argwhere((timeslice[0] <= t) & (t < timeslice[1]))[:,0]
+        print(f'n events after timeslicing: {len(idx_in_bin)}')
+        t = t[idx_in_bin]
+        x = x[idx_in_bin]
+        y = y[idx_in_bin]
+        pol = pol[idx_in_bin]
+    
+    if sample:
+        idx = np.random.randint(0, len(t), sample)
+        data = np.stack([t, x, y, pol], axis=1)[idx]
+        print(f'n events before sampling: {len(t)}, after {data.shape[0]}')
+        t, x, y, pol = data[data[:,0].argsort()].T
+        if norm_timestamps:
+            t -= t[0]
     return t, x, y, pol
 
 def find_videofile(video_file):
@@ -136,6 +155,9 @@ def reshape_events(t, x, y, pol, img_dim, downsample=False, crop_to=None, only_p
 def serialize_nids(x, y, img_dim=(8,8)):
     return (img_dim[0]*y + x).astype(int)
 
+def unserialize_nids(nids, img_dim=(8,8)):
+    return np.array((nids%img_dim[1], nids//img_dim[0])).astype(int)
+
 def filter_events(t, x, y, pol, name, tau, thr):
     print('Filtering downsampled event video.')
     def exp_filter(t, pol, filter_floor=None, plot=False):
@@ -175,8 +197,12 @@ def filter_events(t, x, y, pol, name, tau, thr):
                 if i and exp_filter(ts[:i].copy(), pol[:i].copy(), filter_floor, plot=i):
                     filtered_events.append([ts[i], col, row, pols[i]])
     print('Done.')
-    data = np.array(filtered_events)
-    return data[data[:,0].argsort()].T
+    
+    if any(filtered_events):
+        data = np.array(filtered_events)
+        return data[data[:,0].argsort()].T
+    # print(data.any())
+    # if data.any():
 
 def get_kernelsize(crop_to=None, img_dim=None):
     if crop_to is None and img_dim is not None:
@@ -187,15 +213,22 @@ def get_kernelsize(crop_to=None, img_dim=None):
     return size
 
 def find_filter_params(t, x, y, pol, name, kernelsize=None):
-    taus = [.1, .3, .6, 1, 1.3, 1.6, 2.4, 3]
-    thrs = [2,5,8,10, 20, 40, 70, 100]
+    taus = [.1, .3, .6, 1, 1.5, 2.4]
+    taus = [.3, .6, 1, 1.5, 2.4]
+    thrs = [2,5,8,10, 20, 40, 70, 100,250]
+    name = f'{name}/testing_params/'
+    os.makedirs(f'../data/vid2e/{name}', exist_ok=True)
 
     for tau in taus:
         for thr in thrs:
+            tag = f'_tau{tau}_thr{thr}_regionsize{kernelsize}'
+            print('\n', tag)
             data = filter_events(t, x, y, pol, name, tau, thr)
+            if data is None:
+                print('Everything filtered out.\n')
+                continue
             tf, xf, yf, polf = data
             
-            tag = f'_tau{tau}_thr{thr}_regionsize{kernelsize}'
             filtered_event_plot(t, x, y, pol, tf, xf, yf, polf, name=name, tag=tag)
             events2vid_plot(tf, xf, yf, polf, (8,8), fps=30, name=name, tag=tag)
             plot_isi(tf, xf, yf, polf, (8,8), name=name, tag=tag)
@@ -236,7 +269,7 @@ def plot_exp_filter(t, t_filt, name, tau, thr):
     plt.close()
     
 def filtered_event_plot(t, x, y, pol, t_filt=None, x_filt=None, y_filt=None, pol_filt=None, name=None, tag=''):
-    fig, axes = plt.subplots(8,8, figsize=(18,9), sharey=True, sharex=True)
+    fig, axes = plt.subplots(8,8, figsize=(18,9), sharey=True, sharex=True, dpi=300)
     fig.subplots_adjust(left=.06, right=.99, top=.98, bottom=.12, hspace=.4, wspace=.08)
 
     nid = serialize_nids(x, y)
@@ -266,17 +299,28 @@ def filtered_event_plot(t, x, y, pol, t_filt=None, x_filt=None, y_filt=None, pol
                 ax.annotate('filtered:\n\noriginal:', (-0.3, .25), xycoords='axes fraction', clip_on=False,
                         fontsize=10)
                 
-            data = t[nid==pixel_id] /1e6
+            pixel_mask = nid==pixel_id
+            if pixel_mask.sum() > 3000:
+                plot_only = np.random.choice(np.where(pixel_mask)[0], 3000, replace=False)
+                pixel_mask[:] = False
+                pixel_mask[plot_only] = True
+            data = t[pixel_mask] /1e6
             colors = [ON_EVENT_COLOR if p == 1 
                       else OFF_EVENT_COLOR 
-                      for p in pol[nid==pixel_id]]
+                      for p in pol[pixel_mask]]
             ax.vlines(data, 0.2,0.8, linewidths=.5, colors=colors)
             
             if t_filt is not None:
-                data = t_filt[nid_filt==pixel_id] /1e6
+                pixel_mask = nid_filt==pixel_id
+                if pixel_mask.sum() > 3000:
+                    plot_only = np.random.choice(np.where(pixel_mask)[0], 3000, replace=False)
+                    pixel_mask[:] = False
+                    pixel_mask[plot_only] = True
+
+                data = t_filt[pixel_mask] /1e6
                 colors = [ON_EVENT_COLOR if p == 1 
                           else OFF_EVENT_COLOR 
-                          for p in pol_filt[nid_filt==pixel_id]]
+                          for p in pol_filt[pixel_mask]]
                 ax.vlines(data, 1.2,1.8, linewidths=.5, colors=colors)
 
             pixel_id += 1
@@ -517,9 +561,9 @@ def main():
     # name = 'car vid2e'
     # events2vid_plot(t, x, y, pol, img_dim, fname=f'../data/{name}.mp4', name=name)
 
-    for which_data in range(len(names)):
     # for which_data in range(len(names)-1,-1,-1):
-        if which_data not in (1,2):
+    for which_data in range(len(names)):
+        if which_data in (1,2,3,4,):
             continue
         name = names[which_data]
         crop_to = crop_tos[which_data] 
@@ -535,18 +579,16 @@ def main():
         # which needs specific esim_py env with opencv and stuff
         raw_events = from_numpy(f'../data/vid2e/{name}/simulated_events.npy')
         tr, xr, yr, polr = raw_events
-        plot_isi(tr, xr, yr, polr, img_dim, name=name, tag='_original')
+        # plot_isi(tr, xr, yr, polr, img_dim, name=name, tag='_original')
        
-       
-        # events2vid_plot(tr, xr, yr, polr, img_dim, name, T, fps, viz_reshape=crop_to)
-        # plot_isi(tr, xr, yr, polr, img_dim)
+        events2vid_plot(tr, xr, yr, polr, img_dim, name, T, fps, viz_reshape=crop_to)
         # continue
 
         # downsample events to 8 by 8
-        td, xd, yd, pold, _ = reshape_events(tr, xr, yr, polr, img_dim, only_pol=None, 
-                                             crop_to=crop_to, downsample=True)
-        # td, xd, yd, pold = np.load(f'../data/vid2e/{name}/downs_cached.npy')
-        plot_isi(td, xd, yd, pold, img_dim, name=name, tag='_downs')
+        # td, xd, yd, pold, _ = reshape_events(tr, xr, yr, polr, img_dim, only_pol=None, 
+        #                                      crop_to=crop_to, downsample=True)
+        td, xd, yd, pold = np.load(f'../data/vid2e/{name}/downs_cached.npy')
+        # plot_isi(td, xd, yd, pold, img_dim, name=name, tag='_downs')
         downs_events = np.stack([td, xd, yd, pold])
         np.save(f'../data/vid2e/{name}/downs_cached.npy', downs_events)
 
@@ -557,11 +599,16 @@ def main():
         # filter downsampled events
         tf, xf, yf, polf = filter_events(td, xd, yd, pold, name, tau, thr)
         filtd_events = np.stack([tf, xf, yf, polf])
-        # check how the filtering went
-        plot_isi(tf, xf, yf, polf, img_dim, name=name, tag='_downs_filtd')
-        filtered_event_plot(td, xd, yd, pold, tf, xf, yf, polf, name=name)
+        # np.save(f'../data/vid2e/{name}/DVS_stimulus.npy', filtd_events)
         
-        # make a video of the entire recording
+        # check how the filtering went
+        # plot_isi(tf, xf, yf, polf, img_dim, name=name, tag='_downs_filtd')
+        # filtered_event_plot(td, xd, yd, pold, tf, xf, yf, polf, name=name)
+        # events_filtd_sampld = from_numpy(f'../data/vid2e/{name}/DVS_stimulus.npy', sample=32500, norm_timestamps=False)
+        # tfs, xfs, yfs, polfs = events_filtd_sampld
+        # filtered_event_plot(tf, xf, yf, polf, tfs, xfs, yfs, polfs, name=name, tag='_32500sample')
+        
+        # make a video of the entire recording to verify each preproc step
         data = (video, raw_events, downs_events, filtd_events)
         plot_stimulus_preprocessing(data, fps, T, img_dim, name, viz_reshape=crop_to, 
                                     slowmo=True)
@@ -575,13 +622,14 @@ crop_tos = [(84, 180, 335, 450), (130, 123, 340, 408),
 cut_tos = [(1,3), (2,5), (1,5)]
 
 names =  'blink_slow', 'blink_medium', 'blink_fast', 'white_ball', 'black_ball'
-Cps = [0.3, 0.3, 0.3, 0.3, 0.3]
-Cns = [0.3, 0.3, 0.3, 0.3, 0.3]
+Cps = [0.4, 0.3, 0.3, 0.3, 0.3]
+Cns = [0.4, 0.3, 0.3, 0.3, 0.3]
 refractory_periods = [0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
-taus = [.6, .6, .6, .1, .1]
-thrs = [20, 20, 20, 60, 60]
-crop_tos = [(50, 85, 370, 540), (35, 110, 370, 540), (50, 85, 370, 540), (130, 225, 470, 620), (30, 80, 480, 440)]
-cut_tos = [[0,6], [0,6], [0,6], [4.7,10.7], [28,35]]
+taus = [.1, .6, .6, .25, .25]
+thrs = [20, 60, 60, 80, 80]
+crop_tos = [(185, 330, 370, 540), (35, 110, 370, 540), (50, 85, 370, 540), (10, 100, 440, 580), (0, 180, 440, 580)]
+cut_tos = [[0,6], [0,6], [0,6], [1.6,7.8], [1.7,7.7]]
 
 if __name__ == '__main__':
-    main()
+    import skvideo.io
+    main() 

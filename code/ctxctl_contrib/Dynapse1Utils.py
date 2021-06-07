@@ -470,15 +470,15 @@ def gen_param_group_1core():
 
     # leakage of AMPA
     paramGroup.param_map["NPDPIE_TAU_F_P"].coarse_value = 3
-    paramGroup.param_map["NPDPIE_TAU_F_P"].fine_value = 80
+    paramGroup.param_map["NPDPIE_TAU_F_P"].fine_value = 10
 
     # gain of AMPA
     paramGroup.param_map["NPDPIE_THR_F_P"].coarse_value = 4
-    paramGroup.param_map["NPDPIE_THR_F_P"].fine_value = 80
+    paramGroup.param_map["NPDPIE_THR_F_P"].fine_value = 240
 
     # weight of AMPA
-    paramGroup.param_map["PS_WEIGHT_EXC_F_N"].coarse_value = 7
-    paramGroup.param_map["PS_WEIGHT_EXC_F_N"].fine_value = 80
+    paramGroup.param_map["PS_WEIGHT_EXC_F_N"].coarse_value = 6
+    paramGroup.param_map["PS_WEIGHT_EXC_F_N"].fine_value = 240
 
     # leakage of NMDA
     paramGroup.param_map["NPDPIE_TAU_S_P"].coarse_value = 4
@@ -513,8 +513,8 @@ def gen_param_group_1core():
     paramGroup.param_map["NPDPII_THR_S_P"].fine_value = 80
 
     # weight of GABA_B
-    paramGroup.param_map["PS_WEIGHT_INH_S_N"].coarse_value = 6
-    paramGroup.param_map["PS_WEIGHT_INH_S_N"].fine_value = 1
+    paramGroup.param_map["PS_WEIGHT_INH_S_N"].coarse_value = 0
+    paramGroup.param_map["PS_WEIGHT_INH_S_N"].fine_value = 0
 
     # other advanced parameters
     paramGroup.param_map["IF_NMDA_N"].coarse_value = 0

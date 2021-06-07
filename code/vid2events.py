@@ -28,8 +28,6 @@ def video2events(name, Cp, Cn, refractory_period, cut_to=None):
         frame_ts = get_frame_timestamps(video_file)
         np.savetxt(timestamps_file, frame_ts)
 
-    # Cp, Cn = 0.2, 0.2
-    # refractory_period = 0.001
     log_eps = 1e-3
     use_log = True
     esim = esim_py.EventSimulator(Cp, 

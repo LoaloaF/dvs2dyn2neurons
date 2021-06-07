@@ -2,13 +2,13 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
-
+from skimage import img_as_ubyte
 
 ON_EVENT_COLOR = np.array((191, 55, 80)) /255
 OFF_EVENT_COLOR = np.array((75, 112, 173)) /255
 
-def get_output_data(name, unserialize_yx=True):
-    data = pickle.load(open(f'../data/events_{name}.pkl', 'rb'))
+def get_output_data(name, unserialize_yx=False, norm_timestamps=True):
+    data = pickle.load(open(f'../data/vid2e/{name}/dyn_output.pkl', 'rb'))
     if unserialize_yx:
         for i, (mon, events) in enumerate(data.items()):
             nids, ts = events.T
@@ -16,6 +16,11 @@ def get_output_data(name, unserialize_yx=True):
             if mon != 'DVS':
                 ts -= ts[0]
             data[mon] = np.concatenate((yx_nids, ts[np.newaxis,:])).T
+    if norm_timestamps:
+        for mon, events in data.items():
+            if mon != 'DVS':
+                events[:,0] -= events[0,0]
+                data[mon] = events
     return data
 
 def plot_firing_rates(data):
@@ -24,7 +29,11 @@ def plot_firing_rates(data):
     fig, axes = plt.subplots(2,3,figsize=(15,10))
     axes[1,2].axis('off')
     for i, (mon, events) in enumerate(data.items()):
-        nids, ts = events.T
+        if mon == 'DVS':
+            nids, ts = events.T
+        else:
+            nids, ts, pol = events.T
+
         non_zero_nids = np.unique(nids)
 
         for non_zero_nid in non_zero_nids:
@@ -62,16 +71,17 @@ def plot_firing_rates(data):
         # ax.arrow(1, 1, 2, 2, head_width=1, head_length=2, fc='k', ec='k', clip_on=False)
         ax.annotate('', xy=arr_stop, xycoords='axes fraction', xytext=arr_start, 
                     arrowprops=dict(arrowstyle="<|-", color=col, linewidth=3))
-    plt.show()
+    # plt.show()
     plt.savefig('../data/heatmaps.png')
 
-def plot_dynamic_response(data, T=16000, fps=None):
+def plot_dynamic_response(data, name, fps=None, T=16000):
     fig, axes = plt.subplots(2,2,figsize=(13,10))
+    fig.suptitle(name, x=.8, fontsize=14)
     [spine.set_visible(False) for ax in axes.flatten() for spine in ax.spines.values()]
     fig.subplots_adjust(top=.95, bottom=.05, wspace=.2, hspace=.18, left=.02, right=.7)
     mpl_frames = []
 
-    last_t = max([dat[-1,2] for dat in data.values()])
+    last_t = max([dat[-1,0] for dat in data.values()])
     nframes = last_t // T
     if fps is None:
         # set fps to match actual raw recording length
@@ -80,7 +90,7 @@ def plot_dynamic_response(data, T=16000, fps=None):
     # the video is made with matplotlibs animations API
     # this collects a list for each frame containing the heatmap and a text label artist
     bin_range = (0,0)
-    for i in range(nframes):
+    for fcount in range(nframes):
         # move the bin boundary by the periodlength
         bin_range = bin_range[1], bin_range[1]+T
         
@@ -88,67 +98,97 @@ def plot_dynamic_response(data, T=16000, fps=None):
         text = axes[0,0].text(0.73,.9, lbl, transform=fig.transFigure, fontsize=14)
         one_frame_artists = [text]
 
-        for i, (mon, events) in enumerate(data.items()):
+        for mon, events in data.items():
             # make an empty whitish frame
             frame = np.full((8,8,3), 240, np.ubyte)
-            y, x, t = events.T
+
+            if mon == 'DVS':
+                t, x, y, pol = events.T
+            else:
+                t, x, y = events.T
 
             if mon == 'DVS':
                 row, column = 0, 0
-                title = 'DVS camera input'
-                arr_stop, arr_start, col = (1.03,0.1), (1.17, 0.1), ON_EVENT_COLOR
+                title = 'DVS camera input, ON & OFF'
             elif mon == 'WTA':
                 row, column = 0, 1
                 title = 'WTA population'
-                arr_stop, arr_start, col = (-.05, -.03), (-.2,-.18), ON_EVENT_COLOR
             elif mon == 'INH':
                 row, column = 1, 0
                 title = 'Inhibitory population'
-                arr_stop, arr_start, col = (1.03, 1.03), (1.18,1.18), OFF_EVENT_COLOR
             elif mon == 'STIM':
-                title = 'stimulating (output) population'
+                title = 'Stimulating (output) population'
                 row, column = 1, 1
-                arr_stop, arr_start, col = (0.1, 1.17), (0.1,1.03), ON_EVENT_COLOR
             else:
                 continue
+
             ax = axes[row, column]
-            ax.annotate('', xy=arr_stop, xycoords='axes fraction', xytext=arr_start, 
-                        arrowprops=dict(arrowstyle="<|-", linewidth=2, color=col))
+            GREY = (.3,.3,.3)
+            arrows = [[.34,.76,.03,.0, ON_EVENT_COLOR, False],
+                      [.34,.70,.03,.0, OFF_EVENT_COLOR, False],
+                      [.54,.53,0,-.02, GREY, False],
+                      [.38,.51,-.03,-.03, GREY, False],
+                      [.35,.51,.03,.03, GREY, True],
+            ]
+            for xstart, ystop, dx, dy, col, inh in arrows:
+                kwargs = {'overhang': .6, 'head_width':.017, 'head_length':.013}
+                if inh:
+                    kwargs = {'overhang': 1, 'head_width':.025, 'head_length':.0005}
+                ax.arrow(xstart,ystop,dx,dy, color=col, shape='full', 
+                         width=.003, clip_on=False, transform=fig.transFigure,
+                         **kwargs)
+            
+            col = GREY
             ax.set_title(title)
             ax.axis('off')
 
             # slice to timepoints that are in the timebin
             idx_in_bin = np.argwhere((bin_range[0] <= t) & (t < bin_range[1]))[:,0]
-            
             # draw events if any for that timerange/ frame
             if idx_in_bin.any():
+                if mon == 'DVS':
+                    col = [img_as_ubyte(ON_EVENT_COLOR) if p == 1 
+                           else img_as_ubyte(OFF_EVENT_COLOR) 
+                           for p in pol[idx_in_bin]]
+
                 # slice coordinates to timebins, set their color in the video
                 coo = np.stack((y[idx_in_bin], x[idx_in_bin]))
-                frame[coo[0], coo[1], :] = col
+                frame[coo[0], coo[1], :] = img_as_ubyte(col)
 
             # draw heatmap
             drawn_frame = ax.imshow(frame, animated=True)
             one_frame_artists.append(drawn_frame)
-
-            # # spines
         mpl_frames.append(one_frame_artists)
 
     ani = animation.ArtistAnimation(fig, mpl_frames, interval=T//1000, blit=True, repeat_delay=1000)
-    plt.show()
+    # plt.show()
     # exit()
     print('encoding video...', end='')
     Writer = animation.writers['ffmpeg'](fps=fps)
-    ani.save('../data/output.mp4', writer=Writer)
-    # print(f'Saved: {}')
+    fname = f'../data/vid2e/{name}/dyn_output.mp4'
+    ani.save(fname, writer=Writer)
+    print(f'Saved: {fname}')
+
+
+
+
+
+
 
 
 def main():
-    name = 'DAVIS1'
+    from create_stimulus import names
+
+    which_data = 4
+
+    name = names[which_data]
+
+    # name = 'DAVIS1'
     # data = get_output_data(name, unserialize_yx=False)
     # plot_firing_rates(data)
     
-    data = get_output_data(name, unserialize_yx=True)
-    plot_dynamic_response(data, T=41000)
+    data = get_output_data(name, norm_timestamps=True)
+    plot_dynamic_response(data, name=name, T=16000)
 
 
 if __name__ == '__main__':
