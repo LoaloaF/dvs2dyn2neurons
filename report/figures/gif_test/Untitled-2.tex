@@ -1,0 +1,161 @@
+\documentclass[8pt]{beamer}
+%gets rid of bottom navigation bars
+\setbeamertemplate{footline}[frame number]{}
+
+%gets rid of bottom navigation symbols
+\setbeamertemplate{navigation symbols}{}
+
+%gets rid of footer
+%will override 'frame number' instruction above
+%comment out to revert to previous/default definitions
+\setbeamertemplate{footline}{}
+
+\usefonttheme{serif}
+\usefonttheme{professionalfonts}
+
+\usepackage{animate}
+\usepackage[document]{ragged2e}
+
+% \usepackage{tikz}
+% \usetikzlibrary{lindenmayersystems}
+% \pgfdeclarelindenmayersystem{A}{%
+%   \symbol{F}{\pgflsystemstep=0.6\pgflsystemstep\pgflsystemdrawforward}
+%   \rule{A->F[+A][-A]}
+% }
+
+
+
+
+% \documentclass[10pt]{beamer}
+\usepackage{hyperref}
+% \usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{blindtext}
+
+
+\usepackage{wrapfig}
+\graphicspath{{./figures/}}
+\usepackage[T1]{fontenc}
+
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{backcolour}{RGB}{240,240,240}
+
+\definecolor{myyellow}{RGB}{255, 226, 36}
+\definecolor{myorange}{RGB}{255, 143, 46}
+\definecolor{myred}{RGB}{204, 72, 72}
+
+\lstdefinestyle{mystyle}{
+	backgroundcolor=\color{backcolour},
+    commentstyle=\color{gray},
+    keywordstyle=\color{myorange},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{myred},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% \usepackage{lipsum}
+% \usepackage{mwe}
+%Document Environment
+
+% there is switches, like \large - can also be encapsulated
+% and there are functions like texttt{"some text"}
+
+% \noindent siwtch
+
+% \begin{document}
+
+
+% \usepackage{animate}
+\fontfamily{cmr}\selectfont
+
+\begin{document}
+\justify
+\linespread{0.8}
+
+\thispagestyle{empty}
+\begin{center}
+    \vspace{1cm}
+    \tiny.\\
+		\LARGE \textbf{Selective visual attention for \textit{in vitro} neural stimulation} \\
+			
+		\vspace{1.8cm}
+		\large
+		INI-508: Neuromorphic Intelligence \\
+		\vspace{0.1cm}
+		14.06.2021
+			
+		\vspace{0.7cm}
+		Class Project Report \\
+		\textbf{Simon Steffens}
+    \pagebreak
+	\end{center}
+
+	% \thispagestyle{empty}
+	% \pagebreak
+	% \tableofcontents
+	% \pagebreak
+
+  \tiny .\\
+	\large{1. Introduction \& Motivation} \\~\\
+	
+  {\fontfamily{cmr}\selectfont
+  \small{ \textbf{ 1.1 Biohybrid vision implant} \\
+  The overarching project inspiring this work is the endeavour of building a
+	brain machine interface that uses ectopic axons as electrodes. This approach
+	is motivated by the limitations of current technology to deliver high-density
+	stimulation in the brain with spatial resolution beyond large neural
+	populations. While recording technologies have made considerable progress over
+	the last decades, stimulation methods have not kept up. In medical
+	applications, deep brain stimulation of basal ganglia has received a lot of
+	attention over the last years, especially due to the remarkable improvements
+	for patients suffering from Parkinson disease. Still, these systems suffer
+	from a range of shortcomings that limit their utility in other settings: first
+	and foremost, the spatial resolution of stimulation is limited to neural
+	populations or entire nuclei, second, immunoreaction to the implanted
+	electrodes causes complications in the long term, and lastly, these systems
+	are limited in their adjustability post surgery, as voltage and pulse width
+	are the only tunable parameters. Our biohybrid multielectrode array (bioMEA)
+	aims to achieve stimulation at single-neuron resolution while simultaneously
+	resolving the latent issue of biocompatibility encountered with implanted
+	metal electrodes. Such single-cell resolution interfaces are most likely
+	required for delivering high dimensional information, for example visual
+	input. Our biohybrid interface will be implanted in the dorsal lateral
+	geniculate nucleus (dLGN) restoring the visual input as depicted in Figure
+	\ref{fig:overview} below.}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+\begin{frame}
+  \center
+  % \animategraphics[loop,autoplay,width=\linewidth]{30}{fra-}{0}{80}
+  \animategraphics[loop,autoplay,width=\linewidth]{30}{../simulated_events/frame-}{0}{20}
+\end{frame}
+
+
+\end{document}
